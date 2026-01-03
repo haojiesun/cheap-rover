@@ -19,8 +19,8 @@
 //#define CAMERA_MODEL_M5STACK_PSRAM
 #define CAMERA_MODEL_AI_THINKER
 
-const char* ssid = "XXX";   //Enter SSID WIFI Name
-const char* password = "XXXXXX";   //Enter WIFI Password
+const char* ssid = "asus-2.4";   //Enter SSID WIFI Name
+const char* password = "jacky78901234";   //Enter WIFI Password
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
 #define PWDN_GPIO_NUM    -1

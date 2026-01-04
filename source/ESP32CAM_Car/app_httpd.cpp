@@ -304,7 +304,7 @@ static esp_err_t index_handler(httpd_req_t *req){
  page += "<script>var xhttp = new XMLHttpRequest();</script>";
  page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
  //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
- page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:300px;height:300px; transform:rotate(90deg);'></p><br/><br/>";
+ page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='height:50dvh; transform:rotate(180deg);'></p><br/><br/>";
  
  page += "<p align=center> <button style=background-color:lightgrey;width:90px;height:80px onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Forward</b></button> </p>";
  page += "<p align=center>";

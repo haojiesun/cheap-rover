@@ -10,6 +10,8 @@
 #include "camera_index.h"
 #include "Arduino.h"
 
+#define STEP_DELAY_MS 25
+
 extern int gpLb;
 extern int gpLf;
 extern int gpRb;
@@ -301,24 +303,29 @@ static esp_err_t index_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
     String page = "";
      page += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">\n";
- page += "<script>var xhttp = new XMLHttpRequest();</script>";
- page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
- //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
- page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='height:50dvh; transform:rotate(180deg);'></p><br/><br/>";
- 
- page += "<p align=center> <button style=background-color:lightgrey;width:90px;height:80px onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Forward</b></button> </p>";
- page += "<p align=center>";
- page += "<button style=background-color:lightgrey;width:90px;height:80px; onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=getsend('left') ontouchend=getsend('stop')><b>Left</b></button>&nbsp;";
- page += "<button style=background-color:indianred;width:90px;height:80px onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
- page += "<button style=background-color:lightgrey;width:90px;height:80px onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=getsend('right') ontouchend=getsend('stop')><b>Right</b></button>";
- page += "</p>";
+    page += "<style>.btn{width:60px;height:50px;font-size:80%;}</style>";
+    page += "<script>var xhttp = new XMLHttpRequest();</script>";
+    page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
+    //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
+    page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:100%; max-width:100%; transform:rotate(180deg);'></p>";
+    
+    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Forward</b></button> </p>";
+    page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";
+    page += "<p align=center>";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=getsend('left') ontouchend=getsend('stop')><b>Left</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightblue onclick=getsend('left_stop')><b>Step</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:indianred onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightblue onclick=getsend('right_stop')><b>Step</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=getsend('right') ontouchend=getsend('stop')><b>Right</b></button>";
+    page += "</p>";
 
- page += "<p align=center><button style=background-color:lightgrey;width:90px;height:80px onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=getsend('back') ontouchend=getsend('stop') ><b>Backward</b></button></p>";  
+    page += "<p align=center><button class=btn style=background-color:lightblue onclick=getsend('back_stop')><b>Step</b></button></p>";
+    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=getsend('back') ontouchend=getsend('stop') ><b>Backward</b></button></p>";
 
- page += "<p align=center>";
- page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledon')><b>Light ON</b></button>";
- page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledoff')><b>Light OFF</b></button>";
- page += "</p>";
+    page += "<p align=center>";
+    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledon')><b>Light ON</b></button>";
+    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledoff')><b>Light OFF</b></button>";
+    page += "</p>";
  
     return httpd_resp_send(req, &page[0], strlen(&page[0]));
 }
@@ -329,9 +336,29 @@ static esp_err_t go_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
 }
+
+static esp_err_t go_stop_handler(httpd_req_t *req){
+    WheelAct(HIGH, LOW, HIGH, LOW);
+    Serial.println("Go");
+    delay(STEP_DELAY_MS);
+    WheelAct(LOW, LOW, LOW, LOW);
+    Serial.println("Stop");
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, "OK", 2);
+}
 static esp_err_t back_handler(httpd_req_t *req){
     WheelAct(LOW, HIGH, LOW, HIGH);
     Serial.println("Back");
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, "OK", 2);
+}
+
+static esp_err_t back_stop_handler(httpd_req_t *req){
+    WheelAct(LOW, HIGH, LOW, HIGH);
+    Serial.println("Back");
+    delay(STEP_DELAY_MS);
+    WheelAct(LOW, LOW, LOW, LOW);
+    Serial.println("Stop");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
 }
@@ -342,9 +369,29 @@ static esp_err_t left_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
 }
+
+static esp_err_t left_stop_handler(httpd_req_t *req){
+    WheelAct(HIGH, LOW, LOW, HIGH);
+    Serial.println("Left");
+    delay(STEP_DELAY_MS);
+    WheelAct(LOW, LOW, LOW, LOW);
+    Serial.println("Stop");
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, "OK", 2);
+}
 static esp_err_t right_handler(httpd_req_t *req){
     WheelAct(LOW, HIGH, HIGH, LOW);
     Serial.println("Right");
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, "OK", 2);
+}
+
+static esp_err_t right_stop_handler(httpd_req_t *req){
+    WheelAct(LOW, HIGH, HIGH, LOW);
+    Serial.println("Right");
+    delay(STEP_DELAY_MS);
+    WheelAct(LOW, LOW, LOW, LOW);
+    Serial.println("Stop");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
 }
@@ -371,6 +418,7 @@ static esp_err_t ledoff_handler(httpd_req_t *req){
 
 void startCameraServer(){
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 16;
 
     httpd_uri_t go_uri = {
         .uri       = "/go",
@@ -379,10 +427,24 @@ void startCameraServer(){
         .user_ctx  = NULL
     };
 
+    httpd_uri_t go_stop_uri = {
+        .uri       = "/go_stop",
+        .method    = HTTP_GET,
+        .handler   = go_stop_handler,
+        .user_ctx  = NULL
+    };
+
     httpd_uri_t back_uri = {
         .uri       = "/back",
         .method    = HTTP_GET,
         .handler   = back_handler,
+        .user_ctx  = NULL
+    };
+
+    httpd_uri_t back_stop_uri = {
+        .uri       = "/back_stop",
+        .method    = HTTP_GET,
+        .handler   = back_stop_handler,
         .user_ctx  = NULL
     };
 
@@ -400,10 +462,24 @@ void startCameraServer(){
         .user_ctx  = NULL
     };
     
+    httpd_uri_t left_stop_uri = {
+        .uri       = "/left_stop",
+        .method    = HTTP_GET,
+        .handler   = left_stop_handler,
+        .user_ctx  = NULL
+    };
+    
     httpd_uri_t right_uri = {
         .uri       = "/right",
         .method    = HTTP_GET,
         .handler   = right_handler,
+        .user_ctx  = NULL
+    };
+    
+    httpd_uri_t right_stop_uri = {
+        .uri       = "/right_stop",
+        .method    = HTTP_GET,
+        .handler   = right_stop_handler,
         .user_ctx  = NULL
     };
     
@@ -461,11 +537,15 @@ void startCameraServer(){
     Serial.printf("Starting web server on port: '%d'", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(camera_httpd, &index_uri);
-        httpd_register_uri_handler(camera_httpd, &go_uri); 
-        httpd_register_uri_handler(camera_httpd, &back_uri); 
+        httpd_register_uri_handler(camera_httpd, &go_uri);
+        httpd_register_uri_handler(camera_httpd, &go_stop_uri); 
+        httpd_register_uri_handler(camera_httpd, &back_uri);
+        httpd_register_uri_handler(camera_httpd, &back_stop_uri); 
         httpd_register_uri_handler(camera_httpd, &stop_uri); 
         httpd_register_uri_handler(camera_httpd, &left_uri);
+        httpd_register_uri_handler(camera_httpd, &left_stop_uri);
         httpd_register_uri_handler(camera_httpd, &right_uri);
+        httpd_register_uri_handler(camera_httpd, &right_stop_uri);
         httpd_register_uri_handler(camera_httpd, &ledon_uri);
         httpd_register_uri_handler(camera_httpd, &ledoff_uri);
     }

@@ -304,10 +304,11 @@ static esp_err_t index_handler(httpd_req_t *req){
     String page = "";
      page += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">\n";
     page += "<style>.btn{width:60px;height:50px;font-size:80%;}</style>";
+    page += "<style>b{display:flex;justify-content:center}</style>";
     page += "<script>var xhttp = new XMLHttpRequest();</script>";
     page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
     //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
-    page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:100%; max-width:100%; transform:rotate(180deg);'></p>";
+    page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>";
     
     page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Forward</b></button> </p>";
     page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";

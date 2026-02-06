@@ -303,25 +303,27 @@ static esp_err_t index_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
     String page = "";
      page += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">\n";
-    page += "<style>.btn{width:60px;height:50px;font-size:80%;}</style>";
-    page += "<style>b{display:flex;justify-content:center}</style>";
+    page += "<style>.btn{width:60px;height:50px;font-size:80%;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>";
+    page += "<style>b{display:flex;justify-content:center;pointer-events:none;}</style>";
+    page += "<style>body{-webkit-user-select:none;user-select:none;}</style>";
     page += "<script>var xhttp = new XMLHttpRequest();</script>";
     page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
+    page += "<script>function stopEvent(e){e.preventDefault();e.stopPropagation();}</script>";
     //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
     page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>";
     
-    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=getsend('go') ontouchend=getsend('stop') ><b>Forward</b></button> </p>";
+    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('go')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\" ><b>Forward</b></button> </p>";
     page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";
     page += "<p align=center>";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=getsend('left') ontouchend=getsend('stop')><b>Left</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('left')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\"><b>Left</b></button>&nbsp;";
     page += "<button class=btn style=background-color:lightblue onclick=getsend('left_stop')><b>Step</b></button>&nbsp;";
     page += "<button class=btn style=background-color:indianred onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
     page += "<button class=btn style=background-color:lightblue onclick=getsend('right_stop')><b>Step</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=getsend('right') ontouchend=getsend('stop')><b>Right</b></button>";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('right')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\"><b>Right</b></button>";
     page += "</p>";
 
     page += "<p align=center><button class=btn style=background-color:lightblue onclick=getsend('back_stop')><b>Step</b></button></p>";
-    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=getsend('back') ontouchend=getsend('stop') ><b>Backward</b></button></p>";
+    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('back')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\" ><b>Backward</b></button></p>";
 
     page += "<p align=center>";
     page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledon')><b>Light ON</b></button>";

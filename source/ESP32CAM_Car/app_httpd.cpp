@@ -42,6 +42,7 @@ static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %
 static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
+int stream_port = 0;
 
 static ra_filter_t * ra_filter_init(ra_filter_t * filter, size_t sample_size){
     memset(filter, 0, sizeof(ra_filter_t));
@@ -309,8 +310,7 @@ static esp_err_t index_handler(httpd_req_t *req){
     page += "<script>var xhttp = new XMLHttpRequest();</script>";
     page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
     page += "<script>function stopEvent(e){e.preventDefault();e.stopPropagation();}</script>";
-    //page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:280px;'></p><br/><br/>";
-    page += "<p align=center><IMG SRC='http://" + WiFiAddr + ":81/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>";
+    page += "<script>document.write(\"<p align=center><IMG SRC='http://\" + window.location.hostname + \":" + String(stream_port) + "/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>\");</script>";
     
     page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('go')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\" ><b>Forward</b></button> </p>";
     page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";
@@ -421,6 +421,7 @@ static esp_err_t ledoff_handler(httpd_req_t *req){
 
 void startCameraServer(){
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = 8081;
     config.max_uri_handlers = 16;
 
     httpd_uri_t go_uri = {
@@ -555,6 +556,7 @@ void startCameraServer(){
 
     config.server_port += 1;
     config.ctrl_port += 1;
+    stream_port = config.server_port;
     Serial.printf("Starting stream server on port: '%d'", config.server_port);
     if (httpd_start(&stream_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(stream_httpd, &stream_uri);

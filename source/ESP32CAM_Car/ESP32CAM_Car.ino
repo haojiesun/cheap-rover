@@ -140,6 +140,9 @@ void setup() {
   WiFi.begin(ssid, password);
 
   while (WiFi.status() != WL_CONNECTED) {
+    digitalWrite(gpLed, HIGH);
+    delay(500);
+    digitalWrite(gpLed, LOW);
     delay(500);
     Serial.print(".");
   }

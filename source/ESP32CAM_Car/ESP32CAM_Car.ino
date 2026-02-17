@@ -19,8 +19,11 @@
 //#define CAMERA_MODEL_M5STACK_PSRAM
 #define CAMERA_MODEL_AI_THINKER
 
-const char* ssid = "asus-2.4";   //Enter SSID WIFI Name
-const char* password = "jacky78901234";   //Enter WIFI Password
+const char* ssidHome = "asus-2.4"; 
+const char* passwordHome = "jacky78901234"; 
+
+const char* ssidWork = "Pharos-BYOD"; 
+const char* passwordWork = "KnockKnock!iwfw1392"; 
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
 #define PWDN_GPIO_NUM    -1
@@ -137,16 +140,70 @@ void setup() {
   sensor_t * s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_CIF);
 
-  WiFi.begin(ssid, password);
-
-  while (WiFi.status() != WL_CONNECTED) {
+  // Try connecting to WiFi networks
+  bool connected = false;
+  int attempt = 0;
+  const int maxAttempts = 20; // 10 seconds per network
+  
+  // Try work network first (fast double blink pattern)
+  Serial.println("Attempting to connect to work WiFi...");
+  WiFi.begin(ssidWork, passwordWork);
+  
+  attempt = 0;
+  while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts) {
+    // Fast double blink
     digitalWrite(gpLed, HIGH);
-    delay(500);
+    delay(200);
     digitalWrite(gpLed, LOW);
-    delay(500);
+    delay(200);
+    digitalWrite(gpLed, HIGH);
+    delay(200);
+    digitalWrite(gpLed, LOW);
+    delay(400);
     Serial.print(".");
+    attempt++;
   }
-  Serial.println("");
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    connected = true;
+    Serial.println("");
+    Serial.println("Connected to work WiFi!");
+  } else {
+    Serial.println("");
+    Serial.println("Work WiFi connection failed. Trying home WiFi...");
+    
+    // Disconnect and try home network (slow single blink pattern)
+    WiFi.disconnect();
+    delay(100);
+    WiFi.begin(ssidHome, passwordHome);
+    
+    attempt = 0;
+    while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts) {
+      digitalWrite(gpLed, HIGH);
+      delay(500);
+      digitalWrite(gpLed, LOW);
+      delay(500);
+      Serial.print(".");
+      attempt++;
+    }
+    
+    if (WiFi.status() == WL_CONNECTED) {
+      connected = true;
+      Serial.println("");
+      Serial.println("Connected to home WiFi!");
+    } else {
+      Serial.println("");
+      Serial.println("Failed to connect to any WiFi network!");
+    }
+  }
+  
+  if (!connected) {
+    Serial.println("ERROR: No WiFi connection. Restarting...");
+    delay(3000);
+    ESP.restart();
+    return;
+  }
+  
   Serial.println("WiFi connected");
 
   startCameraServer();

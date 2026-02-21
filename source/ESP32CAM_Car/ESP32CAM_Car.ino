@@ -1,8 +1,8 @@
 
 /*
- * @Date: 2023-8-16 
+ * @Date: 2023-8-16
  * @Description: ESP32 Camera Surveillance Car
- * @FilePath: 
+ * @FilePath:
  */
 
 #include "esp_camera.h"
@@ -15,66 +15,65 @@
 // Adafruit ESP32 Feather
 
 // Select camera model
-//#define CAMERA_MODEL_WROVER_KIT
-//#define CAMERA_MODEL_M5STACK_PSRAM
+// #define CAMERA_MODEL_WROVER_KIT
+// #define CAMERA_MODEL_M5STACK_PSRAM
 #define CAMERA_MODEL_AI_THINKER
 
-const char* ssidHome = "asus-2.4"; 
-const char* passwordHome = "jacky78901234"; 
+const char *ssidHome = "asus-2.4";
+const char *passwordHome = "jacky78901234";
 
-const char* ssidWork = "Pharos-BYOD"; 
-const char* passwordWork = "KnockKnock!iwfw1392"; 
+const char *ssidWork = "Pharos-BYOD";
+const char *passwordWork = "KnockKnock!iwfw1392";
 
 #if defined(CAMERA_MODEL_WROVER_KIT)
-#define PWDN_GPIO_NUM    -1
-#define RESET_GPIO_NUM   -1
-#define XCLK_GPIO_NUM    21
-#define SIOD_GPIO_NUM    26
-#define SIOC_GPIO_NUM    27
+#define PWDN_GPIO_NUM -1
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 21
+#define SIOD_GPIO_NUM 26
+#define SIOC_GPIO_NUM 27
 
-#define Y9_GPIO_NUM      35
-#define Y8_GPIO_NUM      34
-#define Y7_GPIO_NUM      39
-#define Y6_GPIO_NUM      36
-#define Y5_GPIO_NUM      19
-#define Y4_GPIO_NUM      18
-#define Y3_GPIO_NUM       5
-#define Y2_GPIO_NUM       4
-#define VSYNC_GPIO_NUM   25
-#define HREF_GPIO_NUM    23
-#define PCLK_GPIO_NUM    22
-
+#define Y9_GPIO_NUM 35
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 36
+#define Y5_GPIO_NUM 19
+#define Y4_GPIO_NUM 18
+#define Y3_GPIO_NUM 5
+#define Y2_GPIO_NUM 4
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM 23
+#define PCLK_GPIO_NUM 22
 
 #elif defined(CAMERA_MODEL_AI_THINKER)
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
+#define PWDN_GPIO_NUM 32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 0
+#define SIOD_GPIO_NUM 26
+#define SIOC_GPIO_NUM 27
 
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define Y9_GPIO_NUM 35
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 36
+#define Y5_GPIO_NUM 21
+#define Y4_GPIO_NUM 19
+#define Y3_GPIO_NUM 18
+#define Y2_GPIO_NUM 5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM 23
+#define PCLK_GPIO_NUM 22
 
 #else
 #error "Camera model not selected"
 #endif
 
 // GPIO Setting
-extern int gpLb =  2; // Left 1
+extern int gpLb = 2;  // Left 1
 extern int gpLf = 14; // Left 2
 extern int gpRb = 15; // Right 1
 extern int gpRf = 13; // Right 2
-extern int gpLed =  4; // Light
-extern String WiFiAddr ="";
+extern int gpLed = 4; // Light
+extern String WiFiAddr = "";
 
 // Safety timeout mechanism
 extern unsigned long lastCommandTime = 0;
@@ -83,19 +82,19 @@ const unsigned long MOTOR_TIMEOUT_MS = 1500; // 1.5 seconds timeout
 
 void startCameraServer();
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
 
+  pinMode(gpLb, OUTPUT);  // Left Backward
+  pinMode(gpLf, OUTPUT);  // Left Forward
+  pinMode(gpRb, OUTPUT);  // Right Forward
+  pinMode(gpRf, OUTPUT);  // Right Backward
+  pinMode(gpLed, OUTPUT); // Light
 
-  pinMode(gpLb, OUTPUT); //Left Backward
-  pinMode(gpLf, OUTPUT); //Left Forward
-  pinMode(gpRb, OUTPUT); //Right Forward
-  pinMode(gpRf, OUTPUT); //Right Backward
-  pinMode(gpLed, OUTPUT); //Light
-
-  //initialize
+  // initialize
   digitalWrite(gpLb, LOW);
   digitalWrite(gpLf, LOW);
   digitalWrite(gpRb, LOW);
@@ -123,12 +122,15 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
-  //init with high specs to pre-allocate larger buffers
-  if(psramFound()){
+  // init with high specs to pre-allocate larger buffers
+  if (psramFound())
+  {
     config.frame_size = FRAMESIZE_UXGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
-  } else {
+  }
+  else
+  {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
@@ -136,26 +138,28 @@ void setup() {
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
+  if (err != ESP_OK)
+  {
     Serial.printf("Camera init failed with error 0x%x", err);
     return;
   }
 
-  //drop down frame size for higher initial frame rate
-  sensor_t * s = esp_camera_sensor_get();
+  // drop down frame size for higher initial frame rate
+  sensor_t *s = esp_camera_sensor_get();
   s->set_framesize(s, FRAMESIZE_CIF);
 
   // Try connecting to WiFi networks
   bool connected = false;
   int attempt = 0;
   const int maxAttempts = 20; // 10 seconds per network
-  
+
   // Try work network first (fast double blink pattern)
   Serial.println("Attempting to connect to work WiFi...");
   WiFi.begin(ssidWork, passwordWork);
-  
+
   attempt = 0;
-  while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts) {
+  while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts)
+  {
     // Fast double blink
     digitalWrite(gpLed, HIGH);
     delay(200);
@@ -168,22 +172,26 @@ void setup() {
     Serial.print(".");
     attempt++;
   }
-  
-  if (WiFi.status() == WL_CONNECTED) {
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
     connected = true;
     Serial.println("");
     Serial.println("Connected to work WiFi!");
-  } else {
+  }
+  else
+  {
     Serial.println("");
     Serial.println("Work WiFi connection failed. Trying home WiFi...");
-    
+
     // Disconnect and try home network (slow single blink pattern)
     WiFi.disconnect();
     delay(100);
     WiFi.begin(ssidHome, passwordHome);
-    
+
     attempt = 0;
-    while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts) {
+    while (WiFi.status() != WL_CONNECTED && attempt < maxAttempts)
+    {
       digitalWrite(gpLed, HIGH);
       delay(500);
       digitalWrite(gpLed, LOW);
@@ -191,24 +199,28 @@ void setup() {
       Serial.print(".");
       attempt++;
     }
-    
-    if (WiFi.status() == WL_CONNECTED) {
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
       connected = true;
       Serial.println("");
       Serial.println("Connected to home WiFi!");
-    } else {
+    }
+    else
+    {
       Serial.println("");
       Serial.println("Failed to connect to any WiFi network!");
     }
   }
-  
-  if (!connected) {
+
+  if (!connected)
+  {
     Serial.println("ERROR: No WiFi connection. Restarting...");
     delay(3000);
     ESP.restart();
     return;
   }
-  
+
   Serial.println("WiFi connected");
 
   startCameraServer();
@@ -221,13 +233,14 @@ void setup() {
 
 void WheelAct(int nLf, int nLb, int nRf, int nRb);
 
-void loop() 
+void loop()
 {
   // Safety check: auto-stop motors if no command received within timeout
-  if (motorsRunning && (millis() - lastCommandTime > MOTOR_TIMEOUT_MS)) {
+  if (motorsRunning && (millis() - lastCommandTime > MOTOR_TIMEOUT_MS))
+  {
     WheelAct(LOW, LOW, LOW, LOW);
     Serial.println("AUTO-STOP: Motor timeout");
   }
-  
+
   delay(50); // Check every 50ms
 }

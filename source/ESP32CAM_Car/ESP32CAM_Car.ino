@@ -231,7 +231,16 @@ void setup()
   Serial.println("' to connect");
 }
 
-void WheelAct(int nLf, int nLb, int nRf, int nRb);
+void WheelAct(int nLf, int nLb, int nRf, int nRb)
+{
+  digitalWrite(gpLf, nLf);
+  digitalWrite(gpLb, nLb);
+  digitalWrite(gpRf, nRf);
+  digitalWrite(gpRb, nRb);
+
+  // Update motorsRunning based on actual motor state
+  motorsRunning = (nLf == HIGH || nLb == HIGH || nRf == HIGH || nRb == HIGH);
+}
 
 void loop()
 {

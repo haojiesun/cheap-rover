@@ -49,6 +49,7 @@ static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 int stream_port = 0;
+static int current_stream_fd = -1;  // Track current streaming connection
 
 static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size)
 {
@@ -142,6 +143,19 @@ static esp_err_t stream_handler(httpd_req_t *req)
     uint8_t *_jpg_buf = NULL;
     char *part_buf[64];
 
+    // Get the socket descriptor for this connection
+    int fd = httpd_req_to_sockfd(req);
+    
+    // If there's an existing stream, close it to honor the new connection
+    if (current_stream_fd != -1 && current_stream_fd != fd) {
+        Serial.printf("New stream client connected. Closing previous connection (fd=%d)\n", current_stream_fd);
+        httpd_sess_trigger_close(stream_httpd, current_stream_fd);
+    }
+    
+    // Set this as the current streaming connection
+    current_stream_fd = fd;
+    Serial.printf("Stream started for client (fd=%d)\n", fd);
+
     static int64_t last_frame = 0;
     if (!last_frame)
     {
@@ -220,6 +234,11 @@ static esp_err_t stream_handler(httpd_req_t *req)
                       avg_frame_time, 1000.0 / avg_frame_time);
     }
 
+    // Clear the current stream tracking when this connection ends
+    if (current_stream_fd == httpd_req_to_sockfd(req)) {
+        Serial.printf("Stream ended for client (fd=%d)\n", current_stream_fd);
+        current_stream_fd = -1;
+    }
     last_frame = 0;
     return res;
 }

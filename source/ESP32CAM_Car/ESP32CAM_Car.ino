@@ -76,6 +76,11 @@ extern int gpRf = 13; // Right 2
 extern int gpLed =  4; // Light
 extern String WiFiAddr ="";
 
+// Safety timeout mechanism
+extern unsigned long lastCommandTime = 0;
+extern bool motorsRunning = false;
+const unsigned long MOTOR_TIMEOUT_MS = 1500; // 1.5 seconds timeout
+
 void startCameraServer();
 
 void setup() {
@@ -214,9 +219,15 @@ void setup() {
   Serial.println("' to connect");
 }
 
+void WheelAct(int nLf, int nLb, int nRf, int nRb);
+
 void loop() 
 {
+  // Safety check: auto-stop motors if no command received within timeout
+  if (motorsRunning && (millis() - lastCommandTime > MOTOR_TIMEOUT_MS)) {
+    WheelAct(LOW, LOW, LOW, LOW);
+    Serial.println("AUTO-STOP: Motor timeout");
+  }
   
-// put your main code here, to run repeatedly:
-
+  delay(50); // Check every 50ms
 }

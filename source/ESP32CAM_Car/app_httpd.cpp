@@ -19,6 +19,10 @@ extern int gpRf;
 extern int gpLed;
 extern String WiFiAddr;
 
+// Safety timeout mechanism
+extern unsigned long lastCommandTime;
+extern bool motorsRunning;
+
 void WheelAct(int nLf, int nLb, int nRf, int nRb);
 
 typedef struct {
@@ -310,20 +314,32 @@ static esp_err_t index_handler(httpd_req_t *req){
     page += "<script>var xhttp = new XMLHttpRequest();</script>";
     page += "<script>function getsend(arg) { xhttp.open('GET', arg +'?' + new Date().getTime(), true); xhttp.send() } </script>";
     page += "<script>function stopEvent(e){e.preventDefault();e.stopPropagation();}</script>";
+    page += "<script>";
+    page += "var cmdInterval = null;";
+    page += "function startCmd(cmd) {";
+    page += "  if(cmdInterval) clearInterval(cmdInterval);";
+    page += "  getsend(cmd);";
+    page += "  cmdInterval = setInterval(function(){getsend(cmd);}, 800);";
+    page += "}";
+    page += "function stopCmd() {";
+    page += "  if(cmdInterval) {clearInterval(cmdInterval); cmdInterval=null;}";
+    page += "  getsend('stop');";
+    page += "}";
+    page += "</script>";
     page += "<script>document.write(\"<p align=center><IMG SRC='http://\" + window.location.hostname + \":" + String(stream_port) + "/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>\");</script>";
     
-    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=getsend('go') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('go')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\" ><b>Forward</b></button> </p>";
+    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=\"startCmd('go')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('go')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Forward</b></button> </p>";
     page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";
     page += "<p align=center>";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('left') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('left')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\"><b>Left</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('left')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('left')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Left</b></button>&nbsp;";
     page += "<button class=btn style=background-color:lightblue onclick=getsend('left_stop')><b>Step</b></button>&nbsp;";
     page += "<button class=btn style=background-color:indianred onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
     page += "<button class=btn style=background-color:lightblue onclick=getsend('right_stop')><b>Step</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=getsend('right') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('right')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\"><b>Right</b></button>";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('right')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('right')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Right</b></button>";
     page += "</p>";
 
     page += "<p align=center><button class=btn style=background-color:lightblue onclick=getsend('back_stop')><b>Step</b></button></p>";
-    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=getsend('back') onmouseup=getsend('stop') ontouchstart=\"stopEvent(event);getsend('back')\" ontouchend=\"stopEvent(event);getsend('stop')\" ontouchcancel=\"getsend('stop')\" ><b>Backward</b></button></p>";
+    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=\"startCmd('back')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('back')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Backward</b></button></p>";
 
     page += "<p align=center>";
     page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledon')><b>Light ON</b></button>";
@@ -335,6 +351,7 @@ static esp_err_t index_handler(httpd_req_t *req){
 
 static esp_err_t go_handler(httpd_req_t *req){
     WheelAct(HIGH, LOW, HIGH, LOW);
+    lastCommandTime = millis();
     Serial.println("Go");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
@@ -351,6 +368,7 @@ static esp_err_t go_stop_handler(httpd_req_t *req){
 }
 static esp_err_t back_handler(httpd_req_t *req){
     WheelAct(LOW, HIGH, LOW, HIGH);
+    lastCommandTime = millis();
     Serial.println("Back");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
@@ -368,6 +386,7 @@ static esp_err_t back_stop_handler(httpd_req_t *req){
 
 static esp_err_t left_handler(httpd_req_t *req){
     WheelAct(HIGH, LOW, LOW, HIGH);
+    lastCommandTime = millis();
     Serial.println("Left");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
@@ -384,6 +403,7 @@ static esp_err_t left_stop_handler(httpd_req_t *req){
 }
 static esp_err_t right_handler(httpd_req_t *req){
     WheelAct(LOW, HIGH, HIGH, LOW);
+    lastCommandTime = millis();
     Serial.println("Right");
     httpd_resp_set_type(req, "text/html");
     return httpd_resp_send(req, "OK", 2);
@@ -569,4 +589,7 @@ void WheelAct(int nLf, int nLb, int nRf, int nRb)
  digitalWrite(gpLb, nLb);
  digitalWrite(gpRf, nRf);
  digitalWrite(gpRb, nRb);
+ 
+ // Update motorsRunning based on actual motor state
+ motorsRunning = (nLf == HIGH || nLb == HIGH || nRf == HIGH || nRb == HIGH);
 }

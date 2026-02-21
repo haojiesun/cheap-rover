@@ -45,11 +45,37 @@ static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" 
 static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+// Passcode for URL protection - change this to your desired passcode
+const char* PASSCODE = "piccadilly";
+
 static ra_filter_t ra_filter;
 httpd_handle_t stream_httpd = NULL;
 httpd_handle_t camera_httpd = NULL;
 int stream_port = 0;
 static int current_stream_fd = -1;  // Track current streaming connection
+
+// Helper function to check if URI contains valid passcode
+static bool check_passcode(httpd_req_t *req) {
+    const char* uri = req->uri;
+    int passcode_len = strlen(PASSCODE);
+    
+    // Check if URI starts with /passcode
+    if (strncmp(uri + 1, PASSCODE, passcode_len) == 0) {
+        // Valid if it's exactly "/passcode" or "/passcode/something"
+        if (uri[passcode_len + 1] == '\0' || uri[passcode_len + 1] == '/') {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Helper function to send unauthorized response
+static esp_err_t send_passcode_required(httpd_req_t *req) {
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_status(req, "401 Unauthorized");
+    const char* response = "<html><body><h1>401 - Passcode Required</h1><p>Please provide valid passcode in URL</p></body></html>";
+    return httpd_resp_send(req, response, strlen(response));
+}
 
 static ra_filter_t *ra_filter_init(ra_filter_t *filter, size_t sample_size)
 {
@@ -137,6 +163,11 @@ static esp_err_t capture_handler(httpd_req_t *req)
 
 static esp_err_t stream_handler(httpd_req_t *req)
 {
+    // Check passcode first
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
+
     camera_fb_t *fb = NULL;
     esp_err_t res = ESP_OK;
     size_t _jpg_buf_len = 0;
@@ -399,7 +430,16 @@ static esp_err_t status_handler(httpd_req_t *req)
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
+    // Check passcode first
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
+
     httpd_resp_set_type(req, "text/html");
+    
+    // Build URL prefix with passcode
+    String urlPrefix = "/" + String(PASSCODE) + "/";
+    
     String page = "";
     page += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\">\n";
     page += "<style>.btn{width:60px;height:50px;font-size:80%;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}</style>";
@@ -417,27 +457,27 @@ static esp_err_t index_handler(httpd_req_t *req)
     page += "}";
     page += "function stopCmd() {";
     page += "  if(cmdInterval) {clearInterval(cmdInterval); cmdInterval=null;}";
-    page += "  getsend('stop');";
+    page += "  getsend('" + urlPrefix + "stop');";
     page += "}";
     page += "</script>";
-    page += "<script>document.write(\"<p align=center><IMG SRC='http://\" + window.location.hostname + \":" + String(stream_port) + "/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>\");</script>";
+    page += "<script>document.write(\"<p align=center><IMG SRC='http://\" + window.location.hostname + \":" + String(stream_port) + "/" + String(PASSCODE) + "/stream' style='width:100%; max-width:100%; max-height:60vh; object-fit:contain; transform:rotate(180deg);'></p>\");</script>";
 
-    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=\"startCmd('go')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('go')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Forward</b></button> </p>";
-    page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('go_stop')><b>Step</b></button> </p>";
+    page += "<p align=center> <button class=btn style=background-color:lightgrey onmousedown=\"startCmd('" + urlPrefix + "go')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('" + urlPrefix + "go')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Forward</b></button> </p>";
+    page += "<p align=center> <button class=btn style=background-color:lightblue onclick=getsend('" + urlPrefix + "go_stop')><b>Step</b></button> </p>";
     page += "<p align=center>";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('left')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('left')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Left</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:lightblue onclick=getsend('left_stop')><b>Step</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:indianred onmousedown=getsend('stop') onmouseup=getsend('stop')><b>Stop</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:lightblue onclick=getsend('right_stop')><b>Step</b></button>&nbsp;";
-    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('right')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('right')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Right</b></button>";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('" + urlPrefix + "left')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('" + urlPrefix + "left')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Left</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightblue onclick=getsend('" + urlPrefix + "left_stop')><b>Step</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:indianred onmousedown=getsend('" + urlPrefix + "stop') onmouseup=getsend('" + urlPrefix + "stop')><b>Stop</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightblue onclick=getsend('" + urlPrefix + "right_stop')><b>Step</b></button>&nbsp;";
+    page += "<button class=btn style=background-color:lightgrey onmousedown=\"startCmd('" + urlPrefix + "right')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('" + urlPrefix + "right')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\"><b>Right</b></button>";
     page += "</p>";
 
-    page += "<p align=center><button class=btn style=background-color:lightblue onclick=getsend('back_stop')><b>Step</b></button></p>";
-    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=\"startCmd('back')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('back')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Backward</b></button></p>";
+    page += "<p align=center><button class=btn style=background-color:lightblue onclick=getsend('" + urlPrefix + "back_stop')><b>Step</b></button></p>";
+    page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=\"startCmd('" + urlPrefix + "back')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('" + urlPrefix + "back')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Backward</b></button></p>";
 
     page += "<p align=center>";
-    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledon')><b>Light ON</b></button>";
-    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('ledoff')><b>Light OFF</b></button>";
+    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('" + urlPrefix + "ledon')><b>Light ON</b></button>";
+    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('" + urlPrefix + "ledoff')><b>Light OFF</b></button>";
     page += "</p>";
 
     return httpd_resp_send(req, &page[0], strlen(&page[0]));
@@ -445,6 +485,9 @@ static esp_err_t index_handler(httpd_req_t *req)
 
 static esp_err_t go_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(HIGH, LOW, HIGH, LOW);
     lastCommandTime = millis();
     Serial.println("Go");
@@ -454,6 +497,9 @@ static esp_err_t go_handler(httpd_req_t *req)
 
 static esp_err_t go_stop_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(HIGH, LOW, HIGH, LOW);
     Serial.println("Go");
     delay(STEP_DELAY_MS);
@@ -464,6 +510,9 @@ static esp_err_t go_stop_handler(httpd_req_t *req)
 }
 static esp_err_t back_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(LOW, HIGH, LOW, HIGH);
     lastCommandTime = millis();
     Serial.println("Back");
@@ -473,6 +522,9 @@ static esp_err_t back_handler(httpd_req_t *req)
 
 static esp_err_t back_stop_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(LOW, HIGH, LOW, HIGH);
     Serial.println("Back");
     delay(STEP_DELAY_MS);
@@ -484,6 +536,9 @@ static esp_err_t back_stop_handler(httpd_req_t *req)
 
 static esp_err_t left_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(HIGH, LOW, LOW, HIGH);
     lastCommandTime = millis();
     Serial.println("Left");
@@ -493,6 +548,9 @@ static esp_err_t left_handler(httpd_req_t *req)
 
 static esp_err_t left_stop_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(HIGH, LOW, LOW, HIGH);
     Serial.println("Left");
     delay(STEP_DELAY_MS);
@@ -503,6 +561,9 @@ static esp_err_t left_stop_handler(httpd_req_t *req)
 }
 static esp_err_t right_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(LOW, HIGH, HIGH, LOW);
     lastCommandTime = millis();
     Serial.println("Right");
@@ -512,6 +573,9 @@ static esp_err_t right_handler(httpd_req_t *req)
 
 static esp_err_t right_stop_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(LOW, HIGH, HIGH, LOW);
     Serial.println("Right");
     delay(STEP_DELAY_MS);
@@ -523,6 +587,9 @@ static esp_err_t right_stop_handler(httpd_req_t *req)
 
 static esp_err_t stop_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     WheelAct(LOW, LOW, LOW, LOW);
     Serial.println("Stop");
     httpd_resp_set_type(req, "text/html");
@@ -531,6 +598,9 @@ static esp_err_t stop_handler(httpd_req_t *req)
 
 static esp_err_t ledon_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     digitalWrite(gpLed, HIGH);
     Serial.println("LED ON");
     httpd_resp_set_type(req, "text/html");
@@ -538,6 +608,9 @@ static esp_err_t ledon_handler(httpd_req_t *req)
 }
 static esp_err_t ledoff_handler(httpd_req_t *req)
 {
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
     digitalWrite(gpLed, LOW);
     Serial.println("LED OFF");
     httpd_resp_set_type(req, "text/html");
@@ -550,74 +623,103 @@ void startCameraServer()
     config.server_port = 8081;
     config.max_uri_handlers = 16;
 
+    // Build URI strings with passcode prefix - use static buffers to ensure they persist
+    static char uri_index[64];
+    static char uri_go[64];
+    static char uri_go_stop[64];
+    static char uri_back[64];
+    static char uri_back_stop[64];
+    static char uri_stop[64];
+    static char uri_left[64];
+    static char uri_left_stop[64];
+    static char uri_right[64];
+    static char uri_right_stop[64];
+    static char uri_ledon[64];
+    static char uri_ledoff[64];
+    static char uri_stream[64];
+    
+    snprintf(uri_index, sizeof(uri_index), "/%s", PASSCODE);
+    snprintf(uri_go, sizeof(uri_go), "/%s/go", PASSCODE);
+    snprintf(uri_go_stop, sizeof(uri_go_stop), "/%s/go_stop", PASSCODE);
+    snprintf(uri_back, sizeof(uri_back), "/%s/back", PASSCODE);
+    snprintf(uri_back_stop, sizeof(uri_back_stop), "/%s/back_stop", PASSCODE);
+    snprintf(uri_stop, sizeof(uri_stop), "/%s/stop", PASSCODE);
+    snprintf(uri_left, sizeof(uri_left), "/%s/left", PASSCODE);
+    snprintf(uri_left_stop, sizeof(uri_left_stop), "/%s/left_stop", PASSCODE);
+    snprintf(uri_right, sizeof(uri_right), "/%s/right", PASSCODE);
+    snprintf(uri_right_stop, sizeof(uri_right_stop), "/%s/right_stop", PASSCODE);
+    snprintf(uri_ledon, sizeof(uri_ledon), "/%s/ledon", PASSCODE);
+    snprintf(uri_ledoff, sizeof(uri_ledoff), "/%s/ledoff", PASSCODE);
+    snprintf(uri_stream, sizeof(uri_stream), "/%s/stream", PASSCODE);
+    
     httpd_uri_t go_uri = {
-        .uri = "/go",
+        .uri = uri_go,
         .method = HTTP_GET,
         .handler = go_handler,
         .user_ctx = NULL};
 
     httpd_uri_t go_stop_uri = {
-        .uri = "/go_stop",
+        .uri = uri_go_stop,
         .method = HTTP_GET,
         .handler = go_stop_handler,
         .user_ctx = NULL};
 
     httpd_uri_t back_uri = {
-        .uri = "/back",
+        .uri = uri_back,
         .method = HTTP_GET,
         .handler = back_handler,
         .user_ctx = NULL};
 
     httpd_uri_t back_stop_uri = {
-        .uri = "/back_stop",
+        .uri = uri_back_stop,
         .method = HTTP_GET,
         .handler = back_stop_handler,
         .user_ctx = NULL};
 
     httpd_uri_t stop_uri = {
-        .uri = "/stop",
+        .uri = uri_stop,
         .method = HTTP_GET,
         .handler = stop_handler,
         .user_ctx = NULL};
 
     httpd_uri_t left_uri = {
-        .uri = "/left",
+        .uri = uri_left,
         .method = HTTP_GET,
         .handler = left_handler,
         .user_ctx = NULL};
 
     httpd_uri_t left_stop_uri = {
-        .uri = "/left_stop",
+        .uri = uri_left_stop,
         .method = HTTP_GET,
         .handler = left_stop_handler,
         .user_ctx = NULL};
 
     httpd_uri_t right_uri = {
-        .uri = "/right",
+        .uri = uri_right,
         .method = HTTP_GET,
         .handler = right_handler,
         .user_ctx = NULL};
 
     httpd_uri_t right_stop_uri = {
-        .uri = "/right_stop",
+        .uri = uri_right_stop,
         .method = HTTP_GET,
         .handler = right_stop_handler,
         .user_ctx = NULL};
 
     httpd_uri_t ledon_uri = {
-        .uri = "/ledon",
+        .uri = uri_ledon,
         .method = HTTP_GET,
         .handler = ledon_handler,
         .user_ctx = NULL};
 
     httpd_uri_t ledoff_uri = {
-        .uri = "/ledoff",
+        .uri = uri_ledoff,
         .method = HTTP_GET,
         .handler = ledoff_handler,
         .user_ctx = NULL};
 
     httpd_uri_t index_uri = {
-        .uri = "/",
+        .uri = uri_index,
         .method = HTTP_GET,
         .handler = index_handler,
         .user_ctx = NULL};
@@ -641,7 +743,7 @@ void startCameraServer()
         .user_ctx = NULL};
 
     httpd_uri_t stream_uri = {
-        .uri = "/stream",
+        .uri = uri_stream,
         .method = HTTP_GET,
         .handler = stream_handler,
         .user_ctx = NULL};

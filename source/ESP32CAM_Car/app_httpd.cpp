@@ -23,6 +23,9 @@ extern String WiFiAddr;
 extern unsigned long lastCommandTime;
 extern bool motorsRunning;
 
+// WiFi activity tracking for monitoring
+extern unsigned long lastWiFiActivity;
+
 void WheelAct(int nLf, int nLb, int nRf, int nRb);
 
 typedef struct
@@ -167,6 +170,9 @@ static esp_err_t stream_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+
+    // Track WiFi activity
+    lastWiFiActivity = millis();
 
     camera_fb_t *fb = NULL;
     esp_err_t res = ESP_OK;
@@ -435,6 +441,9 @@ static esp_err_t index_handler(httpd_req_t *req)
         return send_passcode_required(req);
     }
 
+    // Track WiFi activity
+    lastWiFiActivity = millis();
+
     httpd_resp_set_type(req, "text/html");
     
     // Build URL prefix with passcode
@@ -488,6 +497,7 @@ static esp_err_t go_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(HIGH, LOW, HIGH, LOW);
     lastCommandTime = millis();
     Serial.println("Go");
@@ -500,6 +510,7 @@ static esp_err_t go_stop_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(HIGH, LOW, HIGH, LOW);
     Serial.println("Go");
     delay(STEP_DELAY_MS);
@@ -513,6 +524,7 @@ static esp_err_t back_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(LOW, HIGH, LOW, HIGH);
     lastCommandTime = millis();
     Serial.println("Back");
@@ -525,6 +537,7 @@ static esp_err_t back_stop_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(LOW, HIGH, LOW, HIGH);
     Serial.println("Back");
     delay(STEP_DELAY_MS);
@@ -539,6 +552,7 @@ static esp_err_t left_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(HIGH, LOW, LOW, HIGH);
     lastCommandTime = millis();
     Serial.println("Left");
@@ -551,6 +565,7 @@ static esp_err_t left_stop_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(HIGH, LOW, LOW, HIGH);
     Serial.println("Left");
     delay(STEP_DELAY_MS);
@@ -564,6 +579,7 @@ static esp_err_t right_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(LOW, HIGH, HIGH, LOW);
     lastCommandTime = millis();
     Serial.println("Right");
@@ -576,6 +592,7 @@ static esp_err_t right_stop_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(LOW, HIGH, HIGH, LOW);
     Serial.println("Right");
     delay(STEP_DELAY_MS);
@@ -590,6 +607,7 @@ static esp_err_t stop_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     WheelAct(LOW, LOW, LOW, LOW);
     Serial.println("Stop");
     httpd_resp_set_type(req, "text/html");
@@ -601,6 +619,7 @@ static esp_err_t ledon_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     digitalWrite(gpLed, HIGH);
     Serial.println("LED ON");
     httpd_resp_set_type(req, "text/html");
@@ -611,6 +630,7 @@ static esp_err_t ledoff_handler(httpd_req_t *req)
     if (!check_passcode(req)) {
         return send_passcode_required(req);
     }
+    lastWiFiActivity = millis();
     digitalWrite(gpLed, LOW);
     Serial.println("LED OFF");
     httpd_resp_set_type(req, "text/html");

@@ -74,11 +74,17 @@ extern int gpRb = 15; // Right 1
 extern int gpRf = 13; // Right 2
 extern int gpLed = 4; // Light
 extern String WiFiAddr = "";
+extern const char* PASSCODE; // Passcode from app_httpd.cpp
 
 // Safety timeout mechanism
 extern unsigned long lastCommandTime = 0;
 extern bool motorsRunning = false;
 const unsigned long MOTOR_TIMEOUT_MS = 1500; // 1.5 seconds timeout
+
+// WiFi monitoring for unattended operation
+extern unsigned long lastWiFiActivity = 0;  // Tracks last HTTP request or command
+const unsigned long WIFI_IDLE_CHECK_MS = 60000;  // Check WiFi only after 1 minute of no activity
+const unsigned long WIFI_RECONNECT_TIMEOUT_MS = 30000;  // 30 seconds to try reconnecting
 
 void startCameraServer();
 
@@ -227,8 +233,13 @@ void setup()
 
   Serial.print("Camera Ready! Use 'http://");
   Serial.print(WiFi.localIP());
-  WiFiAddr = WiFi.localIP().toString();
+  Serial.print(":8081/");
+  Serial.print(PASSCODE);
   Serial.println("' to connect");
+  WiFiAddr = WiFi.localIP().toString();
+  
+  // Initialize WiFi activity tracking
+  lastWiFiActivity = millis();
 }
 
 void WheelAct(int nLf, int nLb, int nRf, int nRb)
@@ -249,6 +260,51 @@ void loop()
   {
     WheelAct(LOW, LOW, LOW, LOW);
     Serial.println("AUTO-STOP: Motor timeout");
+  }
+
+  // WiFi monitoring: Only check when idle (no activity for over 1 minute)
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastWiFiActivity > WIFI_IDLE_CHECK_MS)
+  {
+    // Check WiFi status only during idle periods
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("WiFi disconnected! Attempting reconnection...");
+      
+      // Try to reconnect
+      WiFi.disconnect();
+      WiFi.begin(ssidHome, passwordHome);
+      
+      unsigned long reconnectStart = millis();
+      bool reconnected = false;
+      
+      while (millis() - reconnectStart < WIFI_RECONNECT_TIMEOUT_MS)
+      {
+        if (WiFi.status() == WL_CONNECTED)
+        {
+          reconnected = true;
+          Serial.println("WiFi reconnected successfully!");
+          Serial.print("IP: ");
+          Serial.println(WiFi.localIP());
+          lastWiFiActivity = millis(); // Reset activity timer
+          break;
+        }
+        delay(500);
+        Serial.print(".");
+      }
+      
+      if (!reconnected)
+      {
+        Serial.println("\nWiFi reconnection failed. Restarting ESP32...");
+        delay(1000);
+        ESP.restart();
+      }
+    }
+    else
+    {
+      // WiFi is connected, update activity time to check again after idle period
+      lastWiFiActivity = currentMillis;
+    }
   }
 
   delay(50); // Check every 50ms

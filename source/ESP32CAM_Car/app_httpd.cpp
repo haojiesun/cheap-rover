@@ -485,8 +485,9 @@ static esp_err_t index_handler(httpd_req_t *req)
     page += "<p align=center><button class=btn style=background-color:lightgrey onmousedown=\"startCmd('" + urlPrefix + "back')\" onmouseup=\"stopCmd()\" ontouchstart=\"stopEvent(event);startCmd('" + urlPrefix + "back')\" ontouchend=\"stopEvent(event);stopCmd()\" ontouchcancel=\"stopCmd()\" ><b>Backward</b></button></p>";
 
     page += "<p align=center>";
-    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('" + urlPrefix + "ledon')><b>Light ON</b></button>";
-    page += "<button style=background-color:yellow;width:140px;height:40px onmousedown=getsend('" + urlPrefix + "ledoff')><b>Light OFF</b></button>";
+    page += "<button style=background-color:yellow;width:98px;height:40px onmousedown=getsend('" + urlPrefix + "ledon')><b>Light ON</b></button>";
+    page += "<button style=background-color:yellow;width:98px;height:40px onmousedown=getsend('" + urlPrefix + "ledoff')><b>Light OFF</b></button>";
+    page += "<button style=background-color:orange;width:98px;height:40px onclick=\"if(confirm('Restart?'))getsend('" + urlPrefix + "reset')\"><b>Restart</b></button>";
     page += "</p>";
 
     return httpd_resp_send(req, &page[0], strlen(&page[0]));
@@ -637,6 +638,20 @@ static esp_err_t ledoff_handler(httpd_req_t *req)
     return httpd_resp_send(req, "OK", 2);
 }
 
+static esp_err_t reset_handler(httpd_req_t *req)
+{
+    if (!check_passcode(req)) {
+        return send_passcode_required(req);
+    }
+    lastWiFiActivity = millis();
+    Serial.println("Restarting ESP32...");
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_send(req, "Restarting...", 13);
+    delay(100);
+    ESP.restart();
+    return ESP_OK;
+}
+
 void startCameraServer()
 {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -656,6 +671,7 @@ void startCameraServer()
     static char uri_right_stop[64];
     static char uri_ledon[64];
     static char uri_ledoff[64];
+    static char uri_reset[64];
     static char uri_stream[64];
     
     snprintf(uri_index, sizeof(uri_index), "/%s", PASSCODE);
@@ -670,6 +686,7 @@ void startCameraServer()
     snprintf(uri_right_stop, sizeof(uri_right_stop), "/%s/right_stop", PASSCODE);
     snprintf(uri_ledon, sizeof(uri_ledon), "/%s/ledon", PASSCODE);
     snprintf(uri_ledoff, sizeof(uri_ledoff), "/%s/ledoff", PASSCODE);
+    snprintf(uri_reset, sizeof(uri_reset), "/%s/reset", PASSCODE);
     snprintf(uri_stream, sizeof(uri_stream), "/%s/stream", PASSCODE);
     
     httpd_uri_t go_uri = {
@@ -738,6 +755,12 @@ void startCameraServer()
         .handler = ledoff_handler,
         .user_ctx = NULL};
 
+    httpd_uri_t reset_uri = {
+        .uri = uri_reset,
+        .method = HTTP_GET,
+        .handler = reset_handler,
+        .user_ctx = NULL};
+
     httpd_uri_t index_uri = {
         .uri = uri_index,
         .method = HTTP_GET,
@@ -784,6 +807,7 @@ void startCameraServer()
         httpd_register_uri_handler(camera_httpd, &right_stop_uri);
         httpd_register_uri_handler(camera_httpd, &ledon_uri);
         httpd_register_uri_handler(camera_httpd, &ledoff_uri);
+        httpd_register_uri_handler(camera_httpd, &reset_uri);
     }
 
     config.server_port += 1;

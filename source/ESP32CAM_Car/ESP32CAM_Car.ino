@@ -7,6 +7,7 @@
 
 #include "esp_camera.h"
 #include <WiFi.h>
+#include "esp_heap_caps.h"
 
 //
 // WARNING!!! Make sure that you have either selected ESP32 Wrover Module,
@@ -255,6 +256,19 @@ void WheelAct(int nLf, int nLb, int nRf, int nRb)
 
 void loop()
 {
+  // Heap monitor: log free/min/largest-block every 30s to diagnose leaks vs fragmentation.
+  // If largest_block shrinks while free stays flat -> fragmentation.
+  // If free itself trends down over hours -> genuine leak.
+  static unsigned long lastHeapLog = 0;
+  if (millis() - lastHeapLog > 30000)
+  {
+    lastHeapLog = millis();
+    Serial.printf("Heap: free=%u  min_free=%u  largest_block=%u\n",
+                  ESP.getFreeHeap(),
+                  ESP.getMinFreeHeap(),
+                  heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+  }
+
   // Safety check: auto-stop motors if no command received within timeout
   if (motorsRunning && (millis() - lastCommandTime > MOTOR_TIMEOUT_MS))
   {

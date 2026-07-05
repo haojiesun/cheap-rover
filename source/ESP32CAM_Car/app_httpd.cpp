@@ -9,6 +9,7 @@
 #include "img_converters.h"
 #include "camera_index.h"
 #include "Arduino.h"
+#include "lwip/sockets.h"
 
 #define STEP_DELAY_MS 25
 
@@ -182,7 +183,17 @@ static esp_err_t stream_handler(httpd_req_t *req)
 
     // Get the socket descriptor for this connection
     int fd = httpd_req_to_sockfd(req);
-    
+
+    // Apply a send timeout on this socket. Without it, a stalled client (for
+    // example a phone whose screen turns off overnight and stops draining the
+    // TCP window) makes httpd_resp_send_chunk block indefinitely, pinning the
+    // camera frame buffers and eventually locking up the device. With the
+    // timeout, the send fails, we break the loop, and the buffers are released.
+    struct timeval send_timeout;
+    send_timeout.tv_sec = 4;
+    send_timeout.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof(send_timeout));
+
     // If there's an existing stream, close it to honor the new connection
     if (current_stream_fd != -1 && current_stream_fd != fd) {
         Serial.printf("New stream client connected. Closing previous connection (fd=%d)\n", current_stream_fd);
@@ -445,7 +456,17 @@ static esp_err_t index_handler(httpd_req_t *req)
     lastWiFiActivity = millis();
 
     httpd_resp_set_type(req, "text/html");
-    
+
+    // Build the page once and cache it. The passcode and stream port are fixed
+    // at runtime, so rebuilding the page via dozens of String concatenations on
+    // every request only fragments the heap. That fragmentation was a prime
+    // suspect for the overnight lockups, so we build once and reuse.
+    static String cachedPage;
+    if (cachedPage.length() != 0)
+    {
+        return httpd_resp_send(req, cachedPage.c_str(), cachedPage.length());
+    }
+
     // Build URL prefix with passcode
     String urlPrefix = "/" + String(PASSCODE) + "/";
     
@@ -490,7 +511,8 @@ static esp_err_t index_handler(httpd_req_t *req)
     page += "<button style=background-color:orange;width:98px;height:40px onclick=\"if(confirm('Restart?'))getsend('" + urlPrefix + "reset')\"><b>Restart</b></button>";
     page += "</p>";
 
-    return httpd_resp_send(req, &page[0], strlen(&page[0]));
+    cachedPage = page;
+    return httpd_resp_send(req, cachedPage.c_str(), cachedPage.length());
 }
 
 static esp_err_t go_handler(httpd_req_t *req)

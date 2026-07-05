@@ -276,10 +276,9 @@ static esp_err_t stream_handler(httpd_req_t *req)
         int64_t frame_time = fr_end - last_frame;
         last_frame = fr_end;
         frame_time /= 1000;
-        uint32_t avg_frame_time = ra_filter_run(&ra_filter, frame_time);
-        Serial.printf("MJPG: %uB %ums (%.1ffps), AVG: %ums (%.1ffps)", (uint32_t)(_jpg_buf_len),
-                      (uint32_t)frame_time, 1000.0 / (uint32_t)frame_time,
-                      avg_frame_time, 1000.0 / avg_frame_time);
+        // Keep the moving-average filter updated, but suppress the noisy
+        // per-frame MJPG log (it printed once for every streamed frame).
+        ra_filter_run(&ra_filter, frame_time);
     }
 
     // Clear the current stream tracking when this connection ends

@@ -337,7 +337,7 @@ void loop()
   // If largest_block shrinks while free stays flat -> fragmentation.
   // If free itself trends down over hours -> genuine leak.
   static unsigned long lastHeapLog = 0;
-  if (millis() - lastHeapLog > 30000)
+  if (millis() - lastHeapLog > 60000)
   {
     lastHeapLog = millis();
     logHeap();

@@ -254,6 +254,83 @@ void WheelAct(int nLf, int nLb, int nRf, int nRb)
   motorsRunning = (nLf == HIGH || nLb == HIGH || nRf == HIGH || nRb == HIGH);
 }
 
+// Print current heap stats. Used by the 30s monitor and the "heap" command.
+void logHeap()
+{
+  Serial.printf("Heap: free=%u  min_free=%u  largest_block=%u\n",
+                ESP.getFreeHeap(),
+                ESP.getMinFreeHeap(),
+                heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+}
+
+// Read newline-terminated commands from the serial console and dispatch them.
+// This is the only serial input path; the console was previously output-only.
+void handleSerialCommands()
+{
+  static String cmdBuffer = "";
+
+  while (Serial.available() > 0)
+  {
+    char c = (char)Serial.read();
+
+    if (c == '\n' || c == '\r')
+    {
+      cmdBuffer.trim();
+      if (cmdBuffer.length() == 0)
+      {
+        continue;
+      }
+
+      if (cmdBuffer.equalsIgnoreCase("heap"))
+      {
+        logHeap();
+      }
+      else if (cmdBuffer.equalsIgnoreCase("stop"))
+      {
+        WheelAct(LOW, LOW, LOW, LOW);
+        Serial.println("Motors stopped");
+      }
+      else if (cmdBuffer.equalsIgnoreCase("ip"))
+      {
+        Serial.print("IP: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("WiFi status: ");
+        Serial.println(WiFi.status() == WL_CONNECTED ? "connected" : "disconnected");
+      }
+      else if (cmdBuffer.equalsIgnoreCase("uptime"))
+      {
+        Serial.printf("Uptime: %lu ms\n", millis());
+      }
+      else if (cmdBuffer.equalsIgnoreCase("restart"))
+      {
+        Serial.println("Restarting ESP32...");
+        delay(100);
+        ESP.restart();
+      }
+      else if (cmdBuffer.equalsIgnoreCase("help"))
+      {
+        Serial.println("Commands: heap, stop, ip, uptime, restart, help");
+      }
+      else
+      {
+        Serial.printf("Unknown command: '%s' (type 'help')\n", cmdBuffer.c_str());
+      }
+
+      cmdBuffer = "";
+    }
+    else
+    {
+      cmdBuffer += c;
+      // Guard against a runaway line with no newline exhausting memory.
+      if (cmdBuffer.length() > 64)
+      {
+        cmdBuffer = "";
+        Serial.println("Command too long, discarded");
+      }
+    }
+  }
+}
+
 void loop()
 {
   // Heap monitor: log free/min/largest-block every 30s to diagnose leaks vs fragmentation.
@@ -263,11 +340,11 @@ void loop()
   if (millis() - lastHeapLog > 30000)
   {
     lastHeapLog = millis();
-    Serial.printf("Heap: free=%u  min_free=%u  largest_block=%u\n",
-                  ESP.getFreeHeap(),
-                  ESP.getMinFreeHeap(),
-                  heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+    logHeap();
   }
+
+  // Handle any commands typed on the serial console
+  handleSerialCommands();
 
   // Safety check: auto-stop motors if no command received within timeout
   if (motorsRunning && (millis() - lastCommandTime > MOTOR_TIMEOUT_MS))
